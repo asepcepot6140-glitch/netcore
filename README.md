@@ -140,24 +140,3 @@ Lisensi project belum ditentukan. Tambahkan file `LICENSE` sebelum mendistribusi
 **Netcore** · Built for Network Management
 
 </div>
-```
-
-### Cara memasangnya
-
-Di Git Bash, dari folder `golang-backend`, jalankan:
-
-```bash
-notepad README.md
-```
-
-Ganti isi README lama dengan teks di atas, lalu simpan.
-
-Setelah itu, upload ke GitHub:
-
-```bash
-git add README.md
-git commit -m "docs: improve project README"
-git push origin main
-```
-
-**Catatan:** bagian teknologi dan fitur di README perlu disesuaikan dengan implementasi aktual. Saya belum memverifikasi seluruh source code repository, jadi fitur yang belum selesai jangan dianggap sudah berfungsi.
