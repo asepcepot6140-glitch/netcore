@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrNotFound     = errors.New("konfigurasi GenieACS tidak ditemukan")
-	ErrInvalidInput = errors.New("data GenieACS tidak valid")
+	ErrNotFound     = errors.New("GenieACS configuration not found")
+	ErrInvalidInput = errors.New("invalid GenieACS data")
 )
 
 type GenieACSInput struct {

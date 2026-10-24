@@ -2,13 +2,11 @@ package pppoe
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/asepcepot6140-glitch/netcore/internal/config"
 	"github.com/asepcepot6140-glitch/netcore/internal/models"
 	"github.com/asepcepot6140-glitch/netcore/internal/utils"
 
-	"github.com/go-routeros/routeros/v3"
 	"gorm.io/gorm"
 )
 
@@ -36,11 +34,7 @@ func ListPools(userID uint, mikrotikID uint64) ([]Pool, error) {
 		return nil, err
 	}
 
-	client, err := routeros.Dial(
-		fmt.Sprintf("%s:%d", mikrotik.Host, mikrotik.Port),
-		mikrotik.Username,
-		password,
-	)
+	client, err := dialMikrotik(&mikrotik, password)
 	if err != nil {
 		return nil, err
 	}

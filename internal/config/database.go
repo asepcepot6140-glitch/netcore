@@ -13,6 +13,19 @@ import (
 
 var DB *gorm.DB
 
+// databaseSSLMode memakai DB_SSLMODE; default disable hanya untuk DB lokal, selain itu require.
+func databaseSSLMode(host string) string {
+	if mode := strings.TrimSpace(os.Getenv("DB_SSLMODE")); mode != "" {
+		return mode
+	}
+
+	if ip := net.ParseIP(host); host == "localhost" || (ip != nil && ip.IsLoopback()) {
+		return "disable"
+	}
+
+	return "require"
+}
+
 func DatabaseDSN() (string, error) {
 	host := strings.TrimSpace(os.Getenv("DB_HOST"))
 	user := os.Getenv("DB_USER")
@@ -27,7 +40,7 @@ func DatabaseDSN() (string, error) {
 	}
 
 	query := url.Values{
-		"sslmode":  {"disable"},
+		"sslmode":  {databaseSSLMode(host)},
 		"TimeZone": {"Asia/Jakarta"},
 	}
 	if rootCert := strings.TrimSpace(os.Getenv("DB_SSLROOTCERT")); rootCert != "" {

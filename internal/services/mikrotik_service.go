@@ -12,10 +12,10 @@ import (
 )
 
 var (
-	ErrMikrotikNotFound = errors.New("Mikrotik tidak ditemukan")
-	ErrInvalidPort      = errors.New("Port tidak valid")
-	ErrInvalidPassword  = errors.New("Password wajib diisi")
-	ErrNoChanges        = errors.New("Tidak ada data yang diubah")
+	ErrMikrotikNotFound = errors.New("Mikrotik not found")
+	ErrInvalidPort      = errors.New("Invalid port")
+	ErrInvalidPassword  = errors.New("Password is required")
+	ErrNoChanges        = errors.New("No changes were made")
 )
 
 type MikrotikInput struct {
@@ -43,7 +43,7 @@ func CreateMikrotik(userID uint, input MikrotikInput) (*models.Mikrotik, error) 
 	input.Username = strings.TrimSpace(input.Username)
 
 	if input.Name == "" || input.Host == "" || input.Username == "" {
-		return nil, errors.New("Name, Host, dan username wajib diisi")
+		return nil, errors.New("Name, host, and username are required")
 	}
 
 	if input.Password == "" {

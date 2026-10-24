@@ -28,7 +28,7 @@ func ForgotPassword(c *gin.Context) {
 	var req ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Nomor WhatsApp tidak valid",
+			"message": "Invalid WhatsApp number",
 		})
 		return
 	}
@@ -37,20 +37,20 @@ func ForgotPassword(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, auth.ErrOTPWait) {
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"message": "Tunggu satu menit sebelum meminta OTP lagi",
+				"message": "Please wait one minute before requesting another OTP",
 			})
 			return
 		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Gagal memproses permintaan OTP",
+			"message": "Failed to process OTP request",
 		})
 		return
 	}
 
 	// Respons sama meskipun nomor tidak terdaftar.
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Jika nomor terdaftar, kode OTP akan dikirim melalui WhatsApp",
+		"message": "If the number is registered, an OTP code will be sent via WhatsApp",
 	})
 }
 
@@ -58,7 +58,7 @@ func VerifyOTP(c *gin.Context) {
 	var req VerifyOTPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Nomor WhatsApp atau OTP tidak valid",
+			"message": "Invalid WhatsApp number or OTP",
 		})
 		return
 	}
@@ -66,11 +66,11 @@ func VerifyOTP(c *gin.Context) {
 	err := auth.VerifyPasswordResetOTP(req.Phone, req.OTP)
 	if err != nil {
 		status := http.StatusBadRequest
-		message := "OTP tidak valid atau sudah kedaluwarsa"
+		message := "Invalid or expired OTP"
 
 		if errors.Is(err, auth.ErrOTPTooMany) {
 			status = http.StatusTooManyRequests
-			message = "Batas percobaan OTP tercapai"
+			message = "OTP attempt limit reached"
 		}
 
 		c.JSON(status, gin.H{"message": message})
@@ -78,7 +78,7 @@ func VerifyOTP(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "OTP valid",
+		"message": "OTP verified",
 	})
 }
 
@@ -86,7 +86,7 @@ func ResetPassword(c *gin.Context) {
 	var req ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Data reset password tidak valid",
+			"message": "Invalid password reset data",
 		})
 		return
 	}
@@ -100,25 +100,25 @@ func ResetPassword(c *gin.Context) {
 		switch {
 		case errors.Is(err, auth.ErrInvalidOTP):
 			c.JSON(http.StatusBadRequest, gin.H{
-				"message": "OTP tidak valid atau sudah kedaluwarsa",
+				"message": "Invalid or expired OTP",
 			})
 		case errors.Is(err, auth.ErrOTPTooMany):
 			c.JSON(http.StatusTooManyRequests, gin.H{
-				"message": "Batas percobaan OTP tercapai",
+				"message": "OTP attempt limit reached",
 			})
 		case errors.Is(err, auth.ErrPasswordShort):
 			c.JSON(http.StatusBadRequest, gin.H{
-				"message": "Password harus 8 sampai 72 byte",
+				"message": "Password must be between 8 and 72 bytes",
 			})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": "Gagal mengganti password",
+				"message": "Failed to reset password",
 			})
 		}
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Password berhasil diganti. Silakan login kembali.",
+		"message": "Password has been reset. Please sign in again.",
 	})
 }

@@ -2,6 +2,7 @@ package pppoe
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -13,7 +14,7 @@ import (
 func getMikrotikID(c *gin.Context) (uint64, bool) {
 	id, err := pppoe.ParseMikrotikID(c.Query("mikrotik_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "mikrotik_id tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mikrotik_id"})
 		return 0, false
 	}
 	return id, true
@@ -22,7 +23,7 @@ func getMikrotikID(c *gin.Context) (uint64, bool) {
 func getSecretID(c *gin.Context) (string, bool) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" || !strings.HasPrefix(id, "*") {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "ID PPP Secret tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid PPP Secret ID"})
 		return "", false
 	}
 	return id, true
@@ -31,13 +32,14 @@ func getSecretID(c *gin.Context) (string, bool) {
 func handleError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, pppoe.ErrMikrotikNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"message": "MikroTik tidak ditemukan"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "MikroTik not found"})
 	case errors.Is(err, pppoe.ErrSecretNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"message": "PPP Secret tidak ditemukan"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "PPP Secret not found"})
 	case errors.Is(err, pppoe.ErrInvalidInput):
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 	default:
-		c.JSON(http.StatusBadGateway, gin.H{"message": "Gagal berkomunikasi dengan MikroTik"})
+		log.Printf("pppoe secret error: %s %s: %v", c.Request.Method, c.FullPath(), err)
+		c.JSON(http.StatusBadGateway, gin.H{"message": "Failed to communicate with MikroTik"})
 	}
 }
 
@@ -79,13 +81,13 @@ func ShowSecret(c *gin.Context) {
 func CreateSecret(c *gin.Context) {
 	var input pppoe.SecretInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Data PPP Secret tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid PPP Secret data"})
 		return
 	}
 
 	mikrotikID, err := pppoe.ParseMikrotikID(c.Query("mikrotik_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "mikrotik_id tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mikrotik_id"})
 		return
 	}
 
@@ -94,7 +96,7 @@ func CreateSecret(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "PPP Secret berhasil ditambahkan"})
+	c.JSON(http.StatusCreated, gin.H{"message": "PPP Secret added successfully"})
 }
 
 func UpdateSecret(c *gin.Context) {
@@ -110,7 +112,7 @@ func UpdateSecret(c *gin.Context) {
 
 	var input pppoe.SecretInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "Data PPP Secret tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid PPP Secret data"})
 		return
 	}
 
@@ -119,7 +121,7 @@ func UpdateSecret(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "PPP Secret berhasil diperbarui"})
+	c.JSON(http.StatusOK, gin.H{"message": "PPP Secret updated successfully"})
 }
 
 func DeleteSecret(c *gin.Context) {
@@ -138,5 +140,5 @@ func DeleteSecret(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "PPP Secret berhasil dihapus"})
+	c.JSON(http.StatusOK, gin.H{"message": "PPP Secret deleted successfully"})
 }

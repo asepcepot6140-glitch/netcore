@@ -26,7 +26,7 @@ func ListMikrotik(c *gin.Context) {
 	mikrotiks, err := services.ListMikrotik(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Gagal mengambil data Mikrotik",
+			"message": "Failed to fetch Mikrotik data",
 		})
 		return
 	}
@@ -40,7 +40,7 @@ func CreateMikrotik(c *gin.Context) {
 	var req MikrotikRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Data Mikrotik tidak valid",
+			"message": "Invalid Mikrotik data",
 		})
 		return
 	}
@@ -59,19 +59,20 @@ func CreateMikrotik(c *gin.Context) {
 			errors.Is(err, services.ErrInvalidPassword):
 			c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 
-		case strings.Contains(err.Error(), "wajib diisi"):
+		case strings.Contains(err.Error(), "is required"),
+			strings.Contains(err.Error(), "are required"):
 			c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": "Gagal menyimpan Mikrotik",
+				"message": "Failed to save Mikrotik",
 			})
 		}
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Mikrotik berhasil ditambahkan",
+		"message": "Mikrotik added successfully",
 		"data":    mikrotik,
 	})
 }
@@ -82,7 +83,7 @@ func ShowMikrotik(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "ID Mikrotik tidak valid",
+			"message": "Invalid Mikrotik ID",
 		})
 		return
 	}
@@ -92,13 +93,13 @@ func ShowMikrotik(c *gin.Context) {
 		if errors.Is(err, services.ErrMikrotikNotFound) ||
 			errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
-				"message": "Mikrotik tidak ditemukan",
+				"message": "Mikrotik not found",
 			})
 			return
 		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Gagal mengambil data Mikrotik",
+			"message": "Failed to fetch Mikrotik data",
 		})
 		return
 	}
@@ -112,7 +113,7 @@ func UpdateMikrotik(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "ID Mikrotik tidak valid",
+			"message": "Invalid Mikrotik ID",
 		})
 		return
 	}
@@ -120,7 +121,7 @@ func UpdateMikrotik(c *gin.Context) {
 	var req MikrotikRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Data Mikrotik tidak valid",
+			"message": "Invalid Mikrotik data",
 		})
 		return
 	}
@@ -138,7 +139,7 @@ func UpdateMikrotik(c *gin.Context) {
 		case errors.Is(err, services.ErrMikrotikNotFound),
 			errors.Is(err, gorm.ErrRecordNotFound):
 			c.JSON(http.StatusNotFound, gin.H{
-				"message": "Mikrotik tidak ditemukan",
+				"message": "Mikrotik not found",
 			})
 
 		case errors.Is(err, services.ErrInvalidPort),
@@ -147,14 +148,14 @@ func UpdateMikrotik(c *gin.Context) {
 
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": "Gagal memperbarui Mikrotik",
+				"message": "Failed to update Mikrotik",
 			})
 		}
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Mikrotik berhasil diperbarui",
+		"message": "Mikrotik updated successfully",
 		"data":    mikrotik,
 	})
 }
@@ -165,7 +166,7 @@ func DeleteMikrotik(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil || id == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "ID Mikrotik tidak valid",
+			"message": "Invalid Mikrotik ID",
 		})
 		return
 	}
@@ -174,18 +175,18 @@ func DeleteMikrotik(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, services.ErrMikrotikNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
-				"message": "Mikrotik tidak ditemukan",
+				"message": "Mikrotik not found",
 			})
 			return
 		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Gagal menghapus Mikrotik",
+			"message": "Failed to delete Mikrotik",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Mikrotik berhasil dihapus",
+		"message": "Mikrotik deleted successfully",
 	})
 }

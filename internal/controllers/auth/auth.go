@@ -13,7 +13,7 @@ type RegisterRequest struct {
 	Name     string `json:"name" binding:"required,min=2,max=100"`
 	Email    string `json:"email" binding:"required,email"`
 	Phone    string `json:"phone" binding:"required,min=10,max=20"`
-	Password string `json:"password" binding:"required,min=8"`
+	Password string `json:"password" binding:"required,min=8,max=72"`
 }
 
 type LoginRequest struct {
@@ -32,8 +32,7 @@ func Register(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Data registrasi tidak valid",
-			"error":   err.Error(),
+			"message": "Invalid registration data",
 		})
 		return
 	}
@@ -48,26 +47,26 @@ func Register(c *gin.Context) {
 		switch {
 		case errors.Is(err, auth.ErrInvalidInput):
 			c.JSON(http.StatusBadRequest, gin.H{
-				"message": "Data registrasi tidak valid",
+				"message": "Invalid registration data",
 			})
 		case errors.Is(err, auth.ErrEmailExists):
 			c.JSON(http.StatusConflict, gin.H{
-				"message": "Email sudah terdaftar",
+				"message": "Email is already registered",
 			})
 		case errors.Is(err, auth.ErrPhoneExists):
 			c.JSON(http.StatusConflict, gin.H{
-				"message": "Nomor WhatsApp sudah terdaftar",
+				"message": "WhatsApp number is already registered",
 			})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": "Gagal membuat user",
+				"message": "Failed to create user",
 			})
 		}
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Registrasi berhasil",
+		"message": "Registration successful",
 		"user": gin.H{
 			"id":    user.ID,
 			"name":  user.Name,
@@ -82,7 +81,7 @@ func Login(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Data login tidak valid",
+			"message": "Invalid login data",
 		})
 		return
 	}
@@ -97,7 +96,7 @@ func Login(c *gin.Context) {
 
 	if identifier == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Email atau nomor WhatsApp diperlukan",
+			"message": "Email or WhatsApp number is required",
 		})
 		return
 	}
@@ -106,19 +105,19 @@ func Login(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidLogin) {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "Email atau password salah",
+				"message": "Invalid email or password",
 			})
 			return
 		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Gagal memproses login",
+			"message": "Failed to process login",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Login berhasil",
+		"message": "Login successful",
 		"data": gin.H{
 			"user": gin.H{
 				"id":    result.User.ID,
@@ -139,7 +138,7 @@ func Refresh(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Refresh token diperlukan",
+			"message": "Refresh token is required",
 		})
 		return
 	}
@@ -148,13 +147,13 @@ func Refresh(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidToken) {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"message": "Refresh token sudah tidak valid",
+				"message": "Refresh token is no longer valid",
 			})
 			return
 		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Gagal memperbarui refresh token",
+			"message": "Failed to refresh token",
 		})
 		return
 	}
@@ -172,13 +171,13 @@ func Logout(c *gin.Context) {
 
 	if err := auth.Logout(userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Gagal logout",
+			"message": "Failed to log out",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Logout berhasil",
+		"message": "Logout successful",
 	})
 }
 
@@ -189,13 +188,13 @@ func Me(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, auth.ErrUserNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
-				"message": "User tidak ditemukan",
+				"message": "User not found",
 			})
 			return
 		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Gagal mengambil data user",
+			"message": "Failed to fetch user data",
 		})
 		return
 	}

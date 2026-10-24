@@ -2,18 +2,16 @@ package pppoe
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/asepcepot6140-glitch/netcore/internal/config"
 	"github.com/asepcepot6140-glitch/netcore/internal/models"
 	"github.com/asepcepot6140-glitch/netcore/internal/utils"
 
-	"github.com/go-routeros/routeros/v3"
 	"gorm.io/gorm"
 )
 
 type OfflineConnection struct {
-	ID                   string `json:".id"`
+	ID                   string `json:"id"`
 	Disabled             bool   `json:"disabled"`
 	Name                 string `json:"name"`
 	Service              string `json:"service"`
@@ -47,11 +45,7 @@ func ListOfflineConnections(userID uint, mikrotikID uint64) ([]OfflineConnection
 		return nil, err
 	}
 
-	client, err := routeros.Dial(
-		fmt.Sprintf("%s:%d", mikrotik.Host, mikrotik.Port),
-		mikrotik.Username,
-		password,
-	)
+	client, err := dialMikrotik(&mikrotik, password)
 	if err != nil {
 		return nil, err
 	}

@@ -19,11 +19,11 @@ import (
 )
 
 var (
-	ErrInvalidOTP    = errors.New("OTP tidak valid atau sudah kedaluwarsa")
-	ErrOTPTooMany    = errors.New("batas percobaan OTP tercapai")
-	ErrOTPWait       = errors.New("tunggu sebelum meminta OTP lagi")
-	ErrInvalidReset  = errors.New("permintaan reset password tidak valid")
-	ErrPasswordShort = errors.New("password minimal 8 karakter")
+	ErrInvalidOTP    = errors.New("invalid or expired OTP")
+	ErrOTPTooMany    = errors.New("OTP attempt limit reached")
+	ErrOTPWait       = errors.New("please wait before requesting another OTP")
+	ErrInvalidReset  = errors.New("invalid password reset request")
+	ErrPasswordShort = errors.New("password must be at least 8 characters")
 )
 
 const (
@@ -106,7 +106,7 @@ func RequestPasswordReset(phone string) error {
 	}
 
 	message := fmt.Sprintf(
-		"Kode OTP reset password kamu: %s\nBerlaku selama 5 menit.\nJangan berikan kode ini kepada siapa pun.",
+		"Your password reset OTP code: %s\nValid for 5 minutes.\nDo not share this code with anyone.",
 		otp,
 	)
 

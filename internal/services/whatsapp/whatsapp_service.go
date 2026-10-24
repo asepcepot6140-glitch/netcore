@@ -15,7 +15,7 @@ func SendMessage(phone, message string) error {
 	password := os.Getenv("WHATSAPP_GATEWAY_PASSWORD")
 
 	if endpoint == "" || username == "" || password == "" {
-		return fmt.Errorf("konfigurasi WhatsApp gateway belum lengkap")
+		return fmt.Errorf("WhatsApp gateway configuration is incomplete")
 	}
 
 	form := url.Values{}
@@ -45,7 +45,7 @@ func SendMessage(phone, message string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("WhatsApp gateway mengembalikan HTTP %d", resp.StatusCode)
+		return fmt.Errorf("WhatsApp gateway returned HTTP %d", resp.StatusCode)
 	}
 
 	return nil

@@ -14,7 +14,7 @@ import (
 func encryptionKey() ([]byte, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if len(secret) < 32 {
-		return nil, fmt.Errorf("JWT_SECRET minimal 32 karakter untuk enkripsi")
+		return nil, fmt.Errorf("JWT_SECRET must be at least 32 characters for encryption")
 	}
 
 	key := sha256.Sum256([]byte(secret))
@@ -68,7 +68,7 @@ func DecryptMikrotikPassword(encryptedPassword string) (string, error) {
 	}
 
 	if len(data) < gcm.NonceSize()+gcm.Overhead() {
-		return "", fmt.Errorf("data terenkripsi tidak valid")
+		return "", fmt.Errorf("invalid encrypted data")
 	}
 
 	nonce := data[:gcm.NonceSize()]
@@ -76,7 +76,7 @@ func DecryptMikrotikPassword(encryptedPassword string) (string, error) {
 
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return "", fmt.Errorf("gagal mendekripsi password")
+		return "", fmt.Errorf("failed to decrypt password")
 	}
 
 	return string(plaintext), nil

@@ -2,7 +2,7 @@ package pppoe
 
 import (
 	"errors"
-	"fmt"
+	"strings"
 
 	"github.com/asepcepot6140-glitch/netcore/internal/config"
 	"github.com/asepcepot6140-glitch/netcore/internal/models"
@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrProfileNotFound = errors.New("PPP Profile tidak ditemukan")
+var ErrProfileNotFound = errors.New("PPP Profile not found")
 
 type Profile struct {
 	Name              string `json:"name"`
@@ -28,18 +28,40 @@ type Profile struct {
 	Comment           string `json:"comment"`
 }
 
+// ProfileInput: for update, nil = unchanged and "" = clear; for create, empty values are skipped.
 type ProfileInput struct {
-	Name              string `json:"name"`
-	LocalAddress      string `json:"local_address"`
-	RemoteAddress     string `json:"remote_address"`
-	OnlyOne           string `json:"only_one"`
-	RateLimit         string `json:"rate_limit"`
-	InsertQueueBefore string `json:"insert_queue_before"`
-	ParentQueue       string `json:"parent_queue"`
-	AddressList       string `json:"address_list"`
-	OnUp              string `json:"on_up"`
-	OnDown            string `json:"on_down"`
-	Comment           string `json:"comment"`
+	Name              string  `json:"name"`
+	LocalAddress      *string `json:"local_address"`
+	RemoteAddress     *string `json:"remote_address"`
+	OnlyOne           *string `json:"only_one"`
+	RateLimit         *string `json:"rate_limit"`
+	InsertQueueBefore *string `json:"insert_queue_before"`
+	ParentQueue       *string `json:"parent_queue"`
+	AddressList       *string `json:"address_list"`
+	OnUp              *string `json:"on_up"`
+	OnDown            *string `json:"on_down"`
+	Comment           *string `json:"comment"`
+}
+
+type profileArg struct {
+	key   string
+	value *string
+}
+
+// args lists every optional field with its RouterOS key, excluding name.
+func (input ProfileInput) args() []profileArg {
+	return []profileArg{
+		{"local-address", input.LocalAddress},
+		{"remote-address", input.RemoteAddress},
+		{"only-one", input.OnlyOne},
+		{"rate-limit", input.RateLimit},
+		{"insert-queue-before", input.InsertQueueBefore},
+		{"parent-queue", input.ParentQueue},
+		{"address-list", input.AddressList},
+		{"on-up", input.OnUp},
+		{"on-down", input.OnDown},
+		{"comment", input.Comment},
+	}
 }
 
 const profileProperties = "name,local-address,remote-address,only-one,rate-limit,insert-queue-before,parent-queue,address-list,on-up,on-down,comment"
@@ -65,11 +87,7 @@ func connectProfile(userID uint, mikrotikID uint64) (*routeros.Client, error) {
 		return nil, err
 	}
 
-	return routeros.Dial(
-		fmt.Sprintf("%s:%d", mikrotik.Host, mikrotik.Port),
-		mikrotik.Username,
-		password,
-	)
+	return dialMikrotik(&mikrotik, password)
 }
 
 func profileFromRow(row map[string]string) Profile {
@@ -141,6 +159,7 @@ func ShowProfile(userID uint, mikrotikID uint64, name string) (*Profile, error) 
 
 // POST: Tambah profile
 func CreateProfile(userID uint, mikrotikID uint64, input ProfileInput) error {
+	input.Name = strings.TrimSpace(input.Name)
 	if input.Name == "" {
 		return ErrInvalidInput
 	}
@@ -151,20 +170,14 @@ func CreateProfile(userID uint, mikrotikID uint64, input ProfileInput) error {
 	}
 	defer client.Close()
 
-	_, err = client.Run(
-		"/ppp/profile/add",
-		"=name="+input.Name,
-		"=local-address="+input.LocalAddress,
-		"=remote-address="+input.RemoteAddress,
-		"=only-one="+input.OnlyOne,
-		"=rate-limit="+input.RateLimit,
-		"=insert-queue-before="+input.InsertQueueBefore,
-		"=parent-queue="+input.ParentQueue,
-		"=address-list="+input.AddressList,
-		"=on-up="+input.OnUp,
-		"=on-down="+input.OnDown,
-		"=comment="+input.Comment,
-	)
+	args := []string{"/ppp/profile/add", "=name=" + input.Name}
+	for _, arg := range input.args() {
+		if v := optionalValue(arg.value); v != "" {
+			args = append(args, "="+arg.key+"="+v)
+		}
+	}
+
+	_, err = client.Run(args...)
 
 	return err
 }
@@ -202,38 +215,13 @@ func UpdateProfile(
 		"=.id=" + profileID,
 	}
 
-	if input.Name != "" {
-		args = append(args, "=name="+input.Name)
+	if name := strings.TrimSpace(input.Name); name != "" {
+		args = append(args, "=name="+name)
 	}
-	if input.LocalAddress != "" {
-		args = append(args, "=local-address="+input.LocalAddress)
-	}
-	if input.RemoteAddress != "" {
-		args = append(args, "=remote-address="+input.RemoteAddress)
-	}
-	if input.OnlyOne != "" {
-		args = append(args, "=only-one="+input.OnlyOne)
-	}
-	if input.RateLimit != "" {
-		args = append(args, "=rate-limit="+input.RateLimit)
-	}
-	if input.InsertQueueBefore != "" {
-		args = append(args, "=insert-queue-before="+input.InsertQueueBefore)
-	}
-	if input.ParentQueue != "" {
-		args = append(args, "=parent-queue="+input.ParentQueue)
-	}
-	if input.AddressList != "" {
-		args = append(args, "=address-list="+input.AddressList)
-	}
-	if input.OnUp != "" {
-		args = append(args, "=on-up="+input.OnUp)
-	}
-	if input.OnDown != "" {
-		args = append(args, "=on-down="+input.OnDown)
-	}
-	if input.Comment != "" {
-		args = append(args, "=comment="+input.Comment)
+	for _, arg := range input.args() {
+		if arg.value != nil {
+			args = append(args, "="+arg.key+"="+strings.TrimSpace(*arg.value))
+		}
 	}
 
 	if len(args) == 2 {

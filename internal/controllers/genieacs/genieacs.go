@@ -20,7 +20,7 @@ func parseID(c *gin.Context) (uint, bool) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil || id == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "ID GenieACS tidak valid",
+			"message": "Invalid GenieACS ID",
 		})
 		return 0, false
 	}
@@ -32,17 +32,17 @@ func handleError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, genieacs.ErrNotFound):
 		c.JSON(http.StatusNotFound, gin.H{
-			"message": "Konfigurasi GenieACS tidak ditemukan",
+			"message": "GenieACS configuration not found",
 		})
 
 	case errors.Is(err, genieacs.ErrInvalidInput):
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Data GenieACS tidak valid",
+			"message": "Invalid GenieACS data",
 		})
 
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Terjadi kesalahan pada server",
+			"message": "Internal server error",
 		})
 	}
 }
@@ -85,7 +85,7 @@ func Create(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Data GenieACS tidak valid",
+			"message": "Invalid GenieACS data",
 		})
 		return
 	}
@@ -106,7 +106,7 @@ func Create(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "GenieACS berhasil ditambahkan",
+		"message": "GenieACS added successfully",
 		"data":    item,
 	})
 }
@@ -121,7 +121,7 @@ func Update(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": "Data GenieACS tidak valid",
+			"message": "Invalid GenieACS data",
 		})
 		return
 	}
@@ -143,7 +143,7 @@ func Update(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "GenieACS berhasil diperbarui",
+		"message": "GenieACS updated successfully",
 		"data":    item,
 	})
 }
@@ -162,6 +162,6 @@ func Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "GenieACS berhasil dihapus",
+		"message": "GenieACS deleted successfully",
 	})
 }

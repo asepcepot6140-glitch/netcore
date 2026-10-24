@@ -12,20 +12,20 @@ import (
 func handleProfileError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, pppoe.ErrMikrotikNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "MikroTik tidak ditemukan"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "MikroTik not found"})
 	case errors.Is(err, pppoe.ErrProfileNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "PPP Profile tidak ditemukan"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "PPP Profile not found"})
 	case errors.Is(err, pppoe.ErrInvalidInput):
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 	default:
-		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		upstreamError(c, err)
 	}
 }
 
 func getProfileParams(c *gin.Context) (uint64, bool) {
 	mikrotikID, err := pppoe.ParseMikrotikID(c.Query("mikrotik_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "mikrotik_id tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid mikrotik_id"})
 		return 0, false
 	}
 
@@ -77,7 +77,7 @@ func CreateProfile(c *gin.Context) {
 
 	var input pppoe.ProfileInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Format JSON tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format"})
 		return
 	}
 
@@ -90,7 +90,7 @@ func CreateProfile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "PPP Profile berhasil dibuat"})
+	c.JSON(http.StatusCreated, gin.H{"message": "PPP Profile created successfully"})
 }
 
 // PUT /api/pppoe/profiles/:name?mikrotik_id=1
@@ -102,7 +102,7 @@ func UpdateProfile(c *gin.Context) {
 
 	var input pppoe.ProfileInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Format JSON tidak valid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format"})
 		return
 	}
 
@@ -116,7 +116,7 @@ func UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "PPP Profile berhasil diperbarui"})
+	c.JSON(http.StatusOK, gin.H{"message": "PPP Profile updated successfully"})
 }
 
 // DELETE /api/pppoe/profiles/:name?mikrotik_id=1
@@ -135,5 +135,5 @@ func DeleteProfile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "PPP Profile berhasil dihapus"})
+	c.JSON(http.StatusOK, gin.H{"message": "PPP Profile deleted successfully"})
 }

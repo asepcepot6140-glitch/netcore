@@ -16,12 +16,12 @@ import (
 )
 
 var (
-	ErrEmailExists  = errors.New("email sudah terdaftar")
-	ErrPhoneExists  = errors.New("nomor WhatsApp sudah terdaftar")
-	ErrInvalidLogin = errors.New("email atau password salah")
-	ErrInvalidToken = errors.New("refresh token tidak valid")
-	ErrInvalidInput = errors.New("input tidak valid")
-	ErrUserNotFound = errors.New("user tidak ditemukan")
+	ErrEmailExists  = errors.New("email is already registered")
+	ErrPhoneExists  = errors.New("WhatsApp number is already registered")
+	ErrInvalidLogin = errors.New("invalid email or password")
+	ErrInvalidToken = errors.New("invalid refresh token")
+	ErrInvalidInput = errors.New("invalid input")
+	ErrUserNotFound = errors.New("user not found")
 )
 
 type RegisterInput struct {
@@ -42,6 +42,9 @@ type RefreshResult struct {
 	RefreshToken string
 }
 
+// dummyHash hanya untuk menyamakan waktu login user yang tidak ada; tidak cocok dengan password nyata.
+var dummyHash, _ = bcrypt.GenerateFromPassword([]byte("dummy-password-for-timing"), bcrypt.DefaultCost)
+
 func hashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(hash[:])
@@ -54,7 +57,7 @@ func Register(input RegisterInput) (*models.User, error) {
 
 	if len(name) < 2 || len(name) > 100 ||
 		len(phone) < 10 || len(phone) > 20 ||
-		len(input.Password) < 8 {
+		len(input.Password) < 8 || len(input.Password) > 72 {
 		return nil, ErrInvalidInput
 	}
 
@@ -108,6 +111,8 @@ func Login(identifier, password string) (*LoginResult, error) {
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Jalankan bcrypt agar waktu respons tidak membedakan user yang tidak ada.
+			_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 			return nil, ErrInvalidLogin
 		}
 		return nil, err

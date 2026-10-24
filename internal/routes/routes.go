@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"time"
+
 	"github.com/asepcepot6140-glitch/netcore/internal/controllers"
 	"github.com/asepcepot6140-glitch/netcore/internal/controllers/auth"
 	"github.com/asepcepot6140-glitch/netcore/internal/controllers/genieacs"
@@ -13,14 +15,18 @@ import (
 func SetupRoutes(r *gin.Engine) {
 	api := r.Group("/api")
 
-	// Public Auth
-	api.POST("/register", auth.Register)
-	api.POST("/login", auth.Login)
-	api.POST("/refresh", auth.Refresh)
+	// Batas per IP untuk menahan brute force dan spam OTP WhatsApp.
+	authLimit := middleware.RateLimit(10, time.Minute)
+	otpLimit := middleware.RateLimit(5, time.Minute)
 
-	api.POST("/forgot-password", auth.ForgotPassword)
-	api.POST("/verify-otp", auth.VerifyOTP)
-	api.POST("/reset-password", auth.ResetPassword)
+	// Public Auth
+	api.POST("/register", authLimit, auth.Register)
+	api.POST("/login", authLimit, auth.Login)
+	api.POST("/refresh", authLimit, auth.Refresh)
+
+	api.POST("/forgot-password", otpLimit, auth.ForgotPassword)
+	api.POST("/verify-otp", otpLimit, auth.VerifyOTP)
+	api.POST("/reset-password", otpLimit, auth.ResetPassword)
 
 	// Protected
 	protected := api.Group("")
@@ -56,6 +62,7 @@ func SetupRoutes(r *gin.Engine) {
 
 	// PPP Pools
 	protected.GET("/pppoe/pools", pppoe.ListPools)
+	protected.GET("/pppoe/queues", pppoe.ListQueueNames)
 
 	// PPPoE Offline
 	protected.GET("/pppoe/offline", pppoe.ListOfflineConnections)
@@ -67,5 +74,15 @@ func SetupRoutes(r *gin.Engine) {
 	protected.DELETE("/genieacs/:id", genieacs.Delete)
 
 	protected.GET("/devices/:id", genieacs.ListDevices)
+	protected.GET("/devices/:id/:deviceId/wan", genieacs.GetWAN)
+	protected.GET("/devices/:id/:deviceId/lan", genieacs.GetLAN)
+	protected.GET("/devices/:id/:deviceId/wlan", genieacs.GetWLAN)
 	protected.POST("/devices/:id/:deviceId/summon", genieacs.SummonDevice)
+	protected.DELETE("/devices/:id/:deviceId", genieacs.DeleteDevice)
+	protected.POST("/devices/:id/:deviceId/wan", genieacs.AddWAN)
+	protected.PUT("/devices/:id/:deviceId/wan", genieacs.UpdateWAN)
+	protected.DELETE("/devices/:id/:deviceId/wan", genieacs.DeleteWAN)
+	protected.PUT("/devices/:id/:deviceId/lan/dhcp", genieacs.UpdateLANDHCP)
+	protected.PUT("/devices/:id/:deviceId/lan/ports", genieacs.UpdateLANPort)
+	protected.PUT("/devices/:id/:deviceId/wlan", genieacs.UpdateWLAN)
 }

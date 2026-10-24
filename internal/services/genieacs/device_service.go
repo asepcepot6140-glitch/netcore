@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/asepcepot6140-glitch/netcore/internal/models"
+	"github.com/asepcepot6140-glitch/netcore/internal/utils"
 )
 
 type Device struct {
@@ -33,9 +34,7 @@ const (
 	onlineWindow = 5 * time.Minute
 )
 
-var httpClient = &http.Client{
-	Timeout: 15 * time.Second,
-}
+var httpClient = utils.NewSafeHTTPClient(15 * time.Second)
 
 var rxPowerPaths = []string{
 	"InternetGatewayDevice.WANDevice.*.X_ZTE-COM_WANPONInterfaceConfig.RXPower",
@@ -103,30 +102,30 @@ func projection() string {
 
 func baseURL(item *models.GenieACS) (string, error) {
 	if item == nil {
-		return "", fmt.Errorf("konfigurasi GenieACS kosong")
+		return "", fmt.Errorf("GenieACS configuration is empty")
 	}
 
 	host := strings.TrimRight(strings.TrimSpace(item.Host), "/")
 	if host == "" {
-		return "", fmt.Errorf("host GenieACS kosong")
+		return "", fmt.Errorf("GenieACS host is empty")
 	}
 
 	parsed, err := url.Parse(host)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return "", fmt.Errorf("format host GenieACS tidak valid")
+		return "", fmt.Errorf("invalid GenieACS host format")
 	}
 
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return "", fmt.Errorf("skema host GenieACS harus http atau https")
+		return "", fmt.Errorf("GenieACS host scheme must be http or https")
 	}
 
 	if parsed.User != nil {
-		return "", fmt.Errorf("host GenieACS tidak boleh berisi kredensial URL")
+		return "", fmt.Errorf("GenieACS host must not contain URL credentials")
 	}
 
 	if parsed.Port() == "" {
 		if item.Port <= 0 || item.Port > 65535 {
-			return "", fmt.Errorf("port GenieACS tidak valid")
+			return "", fmt.Errorf("invalid GenieACS port")
 		}
 
 		parsed.Host = fmt.Sprintf("%s:%d", parsed.Host, item.Port)
@@ -162,20 +161,20 @@ func GetDevices(ctx context.Context, item *models.GenieACS) ([]Device, error) {
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("gagal menghubungi GenieACS: %w", err)
+		return nil, fmt.Errorf("failed to reach GenieACS: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf(
-			"GenieACS mengembalikan status %d",
+			"GenieACS returned status %d",
 			resp.StatusCode,
 		)
 	}
 
 	var raw []map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-		return nil, fmt.Errorf("gagal membaca respons GenieACS: %w", err)
+		return nil, fmt.Errorf("failed to read GenieACS response: %w", err)
 	}
 
 	devices := make([]Device, 0, len(raw))
@@ -297,36 +296,63 @@ func getValue(data map[string]any, path string) string {
 
 const summonTimeout = 30 * time.Second
 
-var summonClient = &http.Client{
-	Timeout: summonTimeout,
+var summonClient = utils.NewSafeHTTPClient(summonTimeout)
+
+func SummonDevice(ctx context.Context, item *models.GenieACS, deviceID string) (bool, error) {
+	return summonObjects(ctx, item, deviceID, []string{
+		"InternetGatewayDevice.DeviceInfo",
+		"InternetGatewayDevice.WANDevice",
+		"InternetGatewayDevice.LANDevice.1.WLANConfiguration.1",
+	})
 }
 
-func SummonDevice(ctx context.Context, item *models.GenieACS, deviceID string) error {
+func SummonDeviceObject(
+	ctx context.Context,
+	item *models.GenieACS,
+	deviceID string,
+	scope string,
+) (bool, error) {
+	objects := map[string]string{
+		"wan":  "InternetGatewayDevice.WANDevice.1.WANConnectionDevice",
+		"lan":  "InternetGatewayDevice.LANDevice",
+		"wlan": "InternetGatewayDevice.LANDevice.1.WLANConfiguration",
+	}
+	object, ok := objects[scope]
+	if !ok {
+		return false, fmt.Errorf("invalid summon scope")
+	}
+
+	return summonObjects(ctx, item, deviceID, []string{object})
+}
+
+// summonObjects refreshes objects on the device. applied is false when any task was only queued.
+func summonObjects(
+	ctx context.Context,
+	item *models.GenieACS,
+	deviceID string,
+	objects []string,
+) (bool, error) {
 	base, err := baseURL(item)
 	if err != nil {
-		return err
+		return false, err
 	}
 	deviceID = strings.TrimSpace(deviceID)
 	if deviceID == "" {
-		return fmt.Errorf("device ID kosong")
+		return false, fmt.Errorf("device ID is empty")
 	}
 	endpoint := fmt.Sprintf(
 		"%s/devices/%s/tasks?connection_request",
 		base,
 		url.PathEscape(deviceID),
 	)
-	objects := []string{
-		"InternetGatewayDevice.DeviceInfo.",
-		"InternetGatewayDevice.WANDevice.",
-		"InternetGatewayDevice.LANDevice.1.WLANConfiguration.1.",
-	}
+	applied := true
 	for _, object := range objects {
 		payload, err := json.Marshal(map[string]any{
 			"name":       "refreshObject",
 			"objectName": object,
 		})
 		if err != nil {
-			return err
+			return false, err
 		}
 		req, err := http.NewRequestWithContext(
 			ctx,
@@ -335,25 +361,64 @@ func SummonDevice(ctx context.Context, item *models.GenieACS, deviceID string) e
 			bytes.NewReader(payload),
 		)
 		if err != nil {
-			return err
+			return false, err
 		}
 		req.Header.Set("Content-Type", "application/json")
 		resp, err := summonClient.Do(req)
 		if err != nil {
-			return fmt.Errorf("gagal refresh object %s: %w", object, err)
+			return false, fmt.Errorf("failed to refresh object %s: %w", object, err)
 		}
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		resp.Body.Close()
-		if resp.StatusCode != http.StatusOK &&
-			resp.StatusCode != http.StatusCreated &&
-			resp.StatusCode != http.StatusAccepted {
-			return fmt.Errorf(
-				"gagal refresh object %s, status %d: %s",
+		switch resp.StatusCode {
+		case http.StatusOK, http.StatusCreated:
+		case http.StatusAccepted:
+			applied = false
+		default:
+			return false, fmt.Errorf(
+				"failed to refresh object %s, status %d: %s",
 				object,
 				resp.StatusCode,
 				string(body),
 			)
 		}
 	}
-	return nil
+	return applied, nil
+}
+
+// DeleteDevice removes the device record from GenieACS; it re-registers on its next inform.
+func DeleteDevice(ctx context.Context, item *models.GenieACS, deviceID string) error {
+	base, err := baseURL(item)
+	if err != nil {
+		return err
+	}
+	deviceID = strings.TrimSpace(deviceID)
+	if deviceID == "" {
+		return fmt.Errorf("device ID is empty")
+	}
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodDelete,
+		fmt.Sprintf("%s/devices/%s", base, url.PathEscape(deviceID)),
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to reach GenieACS: %w", err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusNoContent:
+		return nil
+	case http.StatusNotFound:
+		return ErrDeviceNotFound
+	default:
+		return fmt.Errorf("GenieACS returned status %d", resp.StatusCode)
+	}
 }

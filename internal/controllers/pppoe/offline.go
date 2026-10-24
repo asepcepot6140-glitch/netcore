@@ -13,7 +13,7 @@ func ListOfflineConnections(c *gin.Context) {
 	mikrotikID, err := pppoe.ParseMikrotikID(c.Query("mikrotik_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "mikrotik_id tidak valid",
+			"error": "Invalid mikrotik_id",
 		})
 		return
 	}
@@ -25,14 +25,12 @@ func ListOfflineConnections(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, pppoe.ErrMikrotikNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{
-				"error": "MikroTik tidak ditemukan",
+				"error": "MikroTik not found",
 			})
 			return
 		}
 
-		c.JSON(http.StatusBadGateway, gin.H{
-			"error": err.Error(),
-		})
+		upstreamError(c, err)
 		return
 	}
 

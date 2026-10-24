@@ -2,19 +2,18 @@ package pppoe
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/asepcepot6140-glitch/netcore/internal/config"
 	"github.com/asepcepot6140-glitch/netcore/internal/models"
 	"github.com/asepcepot6140-glitch/netcore/internal/utils"
 
-	"github.com/go-routeros/routeros/v3"
 	"gorm.io/gorm"
 )
 
-var ErrActiveConnectionNotFound = errors.New("koneksi PPP aktif tidak ditemukan")
+var ErrActiveConnectionNotFound = errors.New("active PPP connection not found")
 
 type ActiveConnection struct {
+	ID            string `json:"id"`
 	Name          string `json:"name"`
 	Service       string `json:"service"`
 	CallerID      string `json:"caller_id"`
@@ -46,11 +45,7 @@ func ListActiveConnections(userID uint, mikrotikID uint64) ([]ActiveConnection, 
 		return nil, err
 	}
 
-	client, err := routeros.Dial(
-		fmt.Sprintf("%s:%d", mikrotik.Host, mikrotik.Port),
-		mikrotik.Username,
-		password,
-	)
+	client, err := dialMikrotik(&mikrotik, password)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +53,7 @@ func ListActiveConnections(userID uint, mikrotikID uint64) ([]ActiveConnection, 
 
 	reply, err := client.Run(
 		"/ppp/active/print",
-		"=.proplist=name,service,caller-id,address,uptime,encoding,session-id,limit-bytes-in,limit-bytes-out,radius",
+		"=.proplist=.id,name,service,caller-id,address,uptime,encoding,session-id,limit-bytes-in,limit-bytes-out,radius",
 	)
 	if err != nil {
 		return nil, err
@@ -68,6 +63,7 @@ func ListActiveConnections(userID uint, mikrotikID uint64) ([]ActiveConnection, 
 
 	for _, row := range reply.Re {
 		connections = append(connections, ActiveConnection{
+			ID:            row.Map[".id"],
 			Name:          row.Map["name"],
 			Service:       row.Map["service"],
 			CallerID:      row.Map["caller-id"],
@@ -108,11 +104,7 @@ func RemoveActiveConnection(userID uint, mikrotikID uint64, id string) error {
 		return err
 	}
 
-	client, err := routeros.Dial(
-		fmt.Sprintf("%s:%d", mikrotik.Host, mikrotik.Port),
-		mikrotik.Username,
-		password,
-	)
+	client, err := dialMikrotik(&mikrotik, password)
 	if err != nil {
 		return err
 	}

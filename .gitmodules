@@ -1,0 +1,3 @@
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/asepcepot6140-glitch/shadcn-admin.git

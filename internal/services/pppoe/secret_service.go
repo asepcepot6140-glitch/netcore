@@ -15,23 +15,24 @@ import (
 )
 
 var (
-	ErrMikrotikNotFound = errors.New("MikroTik tidak ditemukan")
-	ErrSecretNotFound   = errors.New("PPP Secret tidak ditemukan")
-	ErrInvalidInput     = errors.New("input tidak valid")
+	ErrMikrotikNotFound = errors.New("MikroTik not found")
+	ErrSecretNotFound   = errors.New("PPP Secret not found")
+	ErrInvalidInput     = errors.New("invalid input")
 )
 
 type SecretInput struct {
-	Name          string `json:"name"`
-	Password      string `json:"password"`
-	Service       string `json:"service"`
-	Profile       string `json:"profile"`
-	LocalAddress  string `json:"local_address"`
-	RemoteAddress string `json:"remote_address"`
-	Comment       string `json:"comment"`
+	Name          string  `json:"name"`
+	Password      string  `json:"password"`
+	Service       string  `json:"service"`
+	Profile       string  `json:"profile"`
+	LocalAddress  *string `json:"local_address"`  // nil = unchanged, "" = clear
+	RemoteAddress *string `json:"remote_address"` // nil = unchanged, "" = clear
+	Comment       *string `json:"comment"`        // nil = unchanged, "" = clear
+	Disabled      *bool   `json:"disabled"`
 }
 
 type Secret struct {
-	ID                   string `json:".id"`
+	ID                   string `json:"id"`
 	Disabled             bool   `json:"disabled"`
 	Name                 string `json:"name"`
 	Service              string `json:"service"`
@@ -62,21 +63,10 @@ func connect(userID uint, mikrotikID uint64) (*routeros.Client, error) {
 
 	password, err := utils.DecryptMikrotikPassword(mikrotik.PasswordEncrypted)
 	if err != nil {
-		return nil, fmt.Errorf("gagal mendekripsi password MikroTik: %w", err)
+		return nil, fmt.Errorf("failed to decrypt MikroTik password: %w", err)
 	}
 
-	address := fmt.Sprintf("%s:%d", mikrotik.Host, mikrotik.Port)
-
-	client, err := routeros.Dial(
-		address,
-		mikrotik.Username,
-		password,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("gagal terhubung ke MikroTik: %w", err)
-	}
-
-	return client, nil
+	return dialMikrotik(&mikrotik, password)
 }
 
 func ListSecrets(userID uint, mikrotikID uint64) ([]Secret, error) {
@@ -153,16 +143,24 @@ func CreateSecret(userID uint, mikrotikID uint64, input SecretInput) error {
 	}
 	defer client.Close()
 
-	_, err = client.Run(
+	args := []string{
 		"/ppp/secret/add",
-		"=name="+input.Name,
-		"=password="+input.Password,
-		"=service="+input.Service,
-		"=profile="+input.Profile,
-		"=local-address="+input.LocalAddress,
-		"=remote-address="+input.RemoteAddress,
-		"=comment="+input.Comment,
-	)
+		"=name=" + input.Name,
+		"=password=" + input.Password,
+		"=service=" + input.Service,
+		"=profile=" + input.Profile,
+	}
+	if v := optionalValue(input.LocalAddress); v != "" {
+		args = append(args, "=local-address="+v)
+	}
+	if v := optionalValue(input.RemoteAddress); v != "" {
+		args = append(args, "=remote-address="+v)
+	}
+	if input.Comment != nil && *input.Comment != "" {
+		args = append(args, "=comment="+*input.Comment)
+	}
+
+	_, err = client.Run(args...)
 	return err
 }
 
@@ -197,20 +195,23 @@ func UpdateSecret(userID uint, mikrotikID uint64, secretID string, input SecretI
 	if input.Password != "" {
 		args = append(args, "=password="+input.Password)
 	}
+	if input.Disabled != nil {
+		args = append(args, "=disabled="+strconv.FormatBool(*input.Disabled))
+	}
 	if service := strings.TrimSpace(input.Service); service != "" {
 		args = append(args, "=service="+service)
 	}
 	if profile := strings.TrimSpace(input.Profile); profile != "" {
 		args = append(args, "=profile="+profile)
 	}
-	if input.LocalAddress != "" {
-		args = append(args, "=local-address="+input.LocalAddress)
+	if input.LocalAddress != nil {
+		args = append(args, "=local-address="+strings.TrimSpace(*input.LocalAddress))
 	}
-	if input.RemoteAddress != "" {
-		args = append(args, "=remote-address="+input.RemoteAddress)
+	if input.RemoteAddress != nil {
+		args = append(args, "=remote-address="+strings.TrimSpace(*input.RemoteAddress))
 	}
-	if input.Comment != "" {
-		args = append(args, "=comment="+input.Comment)
+	if input.Comment != nil {
+		args = append(args, "=comment="+*input.Comment)
 	}
 
 	if len(args) == 2 {
@@ -249,6 +250,13 @@ func DeleteSecret(userID uint, mikrotikID uint64, secretID string) error {
 		"=.id="+secretID,
 	)
 	return err
+}
+
+func optionalValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(*value)
 }
 
 func ParseMikrotikID(value string) (uint64, error) {

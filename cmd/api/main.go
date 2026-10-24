@@ -3,9 +3,13 @@ package main
 import (
 	"log"
 	"net"
+	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/asepcepot6140-glitch/netcore/internal/config"
+	"github.com/asepcepot6140-glitch/netcore/internal/middleware"
 	"github.com/asepcepot6140-glitch/netcore/internal/models"
 	"github.com/asepcepot6140-glitch/netcore/internal/routes"
 	"github.com/asepcepot6140-glitch/netcore/internal/utils"
@@ -17,15 +21,15 @@ import (
 func main() {
 
 	if err := godotenv.Load(); err != nil {
-		log.Println("File .env tidak ditemukan")
+		log.Println(".env file not found")
 	}
 
 	if err := utils.ValidateJWTSecret(); err != nil {
-		log.Fatal("Konfigurasi JWT tidak valid:", err)
+		log.Fatal("Invalid JWT configuration:", err)
 	}
 
 	if err := config.ConnectDatabase(); err != nil {
-		log.Fatal("Koneksi database gagal:", err)
+		log.Fatal("Database connection failed:", err)
 	}
 
 	err := config.DB.AutoMigrate(
@@ -37,10 +41,27 @@ func main() {
 	)
 
 	if err != nil {
-		log.Fatal("Migration gagal:", err)
+		log.Fatal("Migration failed:", err)
 	}
 
-	r := gin.Default()
+	// Release mode kecuali GIN_MODE=debug dipilih eksplisit.
+	if os.Getenv("GIN_MODE") != "debug" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	r := gin.New()
+	r.Use(gin.Logger(), gin.Recovery(), middleware.SecurityHeaders())
+
+	// Tanpa TRUSTED_PROXIES, ClientIP memakai alamat koneksi langsung (header XFF diabaikan).
+	var proxies []string
+	for _, p := range strings.Split(os.Getenv("TRUSTED_PROXIES"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			proxies = append(proxies, p)
+		}
+	}
+	if err := r.SetTrustedProxies(proxies); err != nil {
+		log.Fatal("Invalid TRUSTED_PROXIES:", err)
+	}
 
 	routes.SetupRoutes(r)
 
@@ -58,7 +79,17 @@ func main() {
 
 	log.Println("Server running on " + address)
 
-	if err := r.Run(address); err != nil {
+	srv := &http.Server{
+		Addr:              address,
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
