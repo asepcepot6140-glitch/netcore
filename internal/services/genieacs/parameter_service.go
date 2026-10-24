@@ -206,6 +206,18 @@ func SetParameters(
 		}
 
 		name, xsdType, found := resolveParameter(node, fieldSpec)
+		parameterPath := path + "." + name
+		if !found && target == "wan" && field == "vlan" {
+			parameterPath, xsdType, found, err = resolveWANLinkVLAN(
+				ctx,
+				base,
+				deviceID,
+				path,
+			)
+			if err != nil {
+				return false, err
+			}
+		}
 		if !found {
 			return false, fmt.Errorf("%w: %s", ErrParameterNotSupported, field)
 		}
@@ -228,7 +240,7 @@ func SetParameters(
 		if err != nil {
 			return false, err
 		}
-		updates = append(updates, []any{path + "." + name, value, xsdType})
+		updates = append(updates, []any{parameterPath, value, xsdType})
 	}
 	if len(updates) == 0 && !hasPortBind {
 		return false, fmt.Errorf("%w: no changes to apply", ErrInvalidParameter)
@@ -276,6 +288,43 @@ func SetParameters(
 		refreshWAN(ctx, item, deviceID, path, hasPortBind)
 	}
 	return true, nil
+}
+
+func resolveWANLinkVLAN(
+	ctx context.Context,
+	base string,
+	deviceID string,
+	wanPath string,
+) (parameterPath, xsdType string, found bool, err error) {
+	var connDevicePath string
+	for _, kind := range []string{".WANIPConnection.", ".WANPPPConnection."} {
+		if index := strings.LastIndex(wanPath, kind); index >= 0 {
+			connDevicePath = wanPath[:index]
+			break
+		}
+	}
+	if connDevicePath == "" {
+		return "", "", false, nil
+	}
+
+	connDevice, err := fetchObject(ctx, base, deviceID, connDevicePath)
+	if err != nil {
+		return "", "", false, err
+	}
+	for _, key := range linkConfigKeys {
+		linkConfig, ok := connDevice[key].(map[string]any)
+		if !ok {
+			continue
+		}
+		name, reported, exists := resolveParameter(
+			linkConfig,
+			paramSpec{names: linkVLANKeys, xsdType: typeUnsigned},
+		)
+		if exists {
+			return connDevicePath + "." + key + "." + name, reported, true, nil
+		}
+	}
+	return "", "", false, nil
 }
 
 // DeleteWANConnection removes one WAN IP/PPP connection instance from the device.
