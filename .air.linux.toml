@@ -1,0 +1,12 @@
+# Konfigurasi air untuk Linux/macOS. Jalankan: air -c .air.linux.toml
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/main ./cmd/api"
+bin = "./tmp/main"
+include_ext = ["go", "env"]
+exclude_dir = ["tmp", "vendor", "frontend", "node_modules"]
+# Vite ikut dinyalakan saat air jalan dan dimatikan saat air dihentikan (Ctrl+C).
+pre_cmd = ["bash scripts/vite.sh start"]
+post_cmd = ["bash scripts/vite.sh stop"]

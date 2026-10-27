@@ -1,0 +1,14 @@
+.git
+.codegraph
+.env
+.env.*
+tmp
+tests
+scripts
+*.zip
+*.md
+**/node_modules
+**/dist
+frontend/.vite
+Dockerfile
+docker-compose.yml

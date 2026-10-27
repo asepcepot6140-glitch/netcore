@@ -1,0 +1,113 @@
+package hotspot
+
+import (
+	"net/http"
+
+	"github.com/asepcepot6140-glitch/netcore/internal/services/hotspot"
+
+	"github.com/gin-gonic/gin"
+)
+
+// GET /api/hotspot/users?mikrotik_id=1
+func ListUsers(c *gin.Context) {
+	mikrotikID, ok := getMikrotikID(c)
+	if !ok {
+		return
+	}
+
+	data, err := hotspot.ListUsers(c.GetUint("user_id"), mikrotikID)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": data})
+}
+
+// GET /api/hotspot/users/:id?mikrotik_id=1
+func ShowUser(c *gin.Context) {
+	mikrotikID, ok := getMikrotikID(c)
+	if !ok {
+		return
+	}
+
+	id, ok := getItemID(c)
+	if !ok {
+		return
+	}
+
+	data, err := hotspot.ShowUser(c.GetUint("user_id"), mikrotikID, id)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": data})
+}
+
+// POST /api/hotspot/users?mikrotik_id=1
+func CreateUser(c *gin.Context) {
+	mikrotikID, ok := getMikrotikID(c)
+	if !ok {
+		return
+	}
+
+	var input hotspot.UserInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid Hotspot User data"})
+		return
+	}
+
+	if err := hotspot.CreateUser(c.GetUint("user_id"), mikrotikID, input); err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Hotspot User added successfully"})
+}
+
+// PUT /api/hotspot/users/:id?mikrotik_id=1
+func UpdateUser(c *gin.Context) {
+	mikrotikID, ok := getMikrotikID(c)
+	if !ok {
+		return
+	}
+
+	id, ok := getItemID(c)
+	if !ok {
+		return
+	}
+
+	var input hotspot.UserInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid Hotspot User data"})
+		return
+	}
+
+	if err := hotspot.UpdateUser(c.GetUint("user_id"), mikrotikID, id, input); err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Hotspot User updated successfully"})
+}
+
+// DELETE /api/hotspot/users/:id?mikrotik_id=1
+func DeleteUser(c *gin.Context) {
+	mikrotikID, ok := getMikrotikID(c)
+	if !ok {
+		return
+	}
+
+	id, ok := getItemID(c)
+	if !ok {
+		return
+	}
+
+	if err := hotspot.DeleteUser(c.GetUint("user_id"), mikrotikID, id); err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Hotspot User deleted successfully"})
+}
